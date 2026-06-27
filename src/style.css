@@ -464,16 +464,24 @@ input[disabled], select[disabled] { background: var(--cinza-pale); color: var(--
 }
 @keyframes spin { to { transform: rotate(360deg) } }
 
-/* ── SEARCH BAR ──────────────────────────────────────────── */
-.search-bar {
+/* ── FILTER BAR ──────────────────────────────────────────── */
+.filter-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.filter-bar select {
+  flex: 1;
+  min-width: 130px;
+  padding: 7px 10px;
+  font-size: 12px;
 }
 .search-input-wrap {
   position: relative;
-  flex: 1;
+  flex: 2;
+  min-width: 180px;
 }
 .search-input-wrap input {
   width: 100%;
@@ -487,6 +495,14 @@ input[disabled], select[disabled] { background: var(--cinza-pale); color: var(--
   color: var(--text3);
   font-size: 14px;
   pointer-events: none;
+}
+
+/* ── SEARCH BAR (legado) ─────────────────────────────────── */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
 /* ── EMPTY STATE ─────────────────────────────────────────── */
