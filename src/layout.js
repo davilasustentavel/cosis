@@ -31,6 +31,7 @@ export function renderLayout(activeKey) {
   document.getElementById('app').innerHTML = `
     <header class="header">
       <div class="header-left">
+        <img src="/cosis/logo-davila.png" alt="dAvila" class="header-logo-img">
         <div class="header-logo">CO<span>SIS</span></div>
         <div class="header-tagline">Controle de Visitas · Lote 05</div>
       </div>

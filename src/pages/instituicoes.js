@@ -200,7 +200,7 @@ export async function renderInstituicoes() {
   }
 
   // ── Drawer ─────────────────────────────────────────────────
-  function openDrawer(r) {
+  async function openDrawer(r) {
     const tipo = TIPO_LABEL[r.tipo_evento] ?? `Tipo ${r.tipo_evento}`
     const tipoCls = TIPO_CLS[r.tipo_evento] ?? 'chip-gray'
     const mun  = r.municipios?.nome ?? '—'
@@ -301,8 +301,63 @@ export async function renderInstituicoes() {
           </div>
         </div>
       </div>
+
+      <div class="drawer-section">
+        <div class="drawer-section-title">Visitas Realizadas</div>
+        <div id="drawer-visitas-wrap"></div>
+      </div>
     `
     document.getElementById('inst-drawer-overlay').classList.add('open')
+
+    // Buscar visitas dessa instituição
+    const visitasWrap = document.getElementById('drawer-visitas-wrap')
+    visitasWrap.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando visitas…</div>'
+
+    const { data: visitas } = await sb
+      .from('visitas')
+      .select('id, data_visita, periodo, pessoas_total, qtd_palestras, status_validacao, usuarios(nome)')
+      .eq('instituicao_id', r.id)
+      .order('data_visita', { ascending: false })
+
+    if (!visitas || visitas.length === 0) {
+      visitasWrap.innerHTML = `
+        <div style="color:var(--text3);font-size:12px;padding:12px 0;text-align:center">
+          Nenhuma visita registrada para esta instituição
+        </div>`
+    } else {
+      visitasWrap.innerHTML = `
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border-light)">Data</th>
+              <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border-light)">Responsável</th>
+              <th style="text-align:center;padding:5px 8px;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border-light)">Pessoas</th>
+              <th style="text-align:center;padding:5px 8px;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border-light)">Situação</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${visitas.map(v => `
+              <tr>
+                <td style="padding:5px 8px;border-bottom:1px solid var(--border-light)">${formatDate(v.data_visita)}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid var(--border-light)">${v.usuarios?.nome ?? '—'}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid var(--border-light);text-align:center">${v.pessoas_total ?? '—'}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid var(--border-light);text-align:center">${statusChip(v.status_validacao)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`
+    }
+  }
+
+  function formatDate(d) {
+    if (!d) return '—'
+    const [y, m, day] = d.split('-')
+    return `${day}/${m}/${y}`
+  }
+
+  function statusChip(s) {
+    if (s === 'aprovada')  return '<span class="chip chip-green">Aprovada</span>'
+    if (s === 'rejeitada') return '<span class="chip chip-gray">Rejeitada</span>'
+    return '<span class="chip chip-yellow">Pendente</span>'
   }
 
   document.getElementById('drawer-close-btn').addEventListener('click', closeDrawer)
