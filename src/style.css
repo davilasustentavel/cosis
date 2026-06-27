@@ -498,3 +498,127 @@ input[disabled], select[disabled] { background: var(--cinza-pale); color: var(--
 .empty-icon { font-size: 36px; margin-bottom: 12px }
 .empty-text { font-size: 14px; font-weight: 600 }
 .empty-sub { font-size: 12px; margin-top: 4px }
+
+/* ── DRAWER (painel deslizante) ──────────────────────────── */
+.drawer-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.35);
+  z-index: 300;
+}
+.drawer-overlay.open { display: block }
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 480px;
+  max-width: 95vw;
+  height: 100vh;
+  background: var(--white);
+  box-shadow: -4px 0 32px rgba(0,0,0,.15);
+  z-index: 301;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .25s cubic-bezier(.4,0,.2,1);
+}
+.drawer-overlay.open .drawer {
+  transform: translateX(0);
+}
+.drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--azul-pale);
+  flex-shrink: 0;
+}
+.drawer-header-content { flex: 1; min-width: 0 }
+.drawer-kicker {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--azul);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-bottom: 4px;
+}
+.drawer-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--cinza);
+  line-height: 1.3;
+  word-break: break-word;
+}
+.drawer-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--text3);
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+.drawer-close:hover { background: var(--border-light); color: var(--cinza) }
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px;
+}
+.drawer-body::-webkit-scrollbar { width: 4px }
+.drawer-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px }
+.drawer-section {
+  margin-bottom: 22px;
+}
+.drawer-section-title {
+  font-size: 9.5px;
+  font-weight: 800;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 1.3px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-light);
+}
+.drawer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+}
+.drawer-grid.cols-1 { grid-template-columns: 1fr }
+.drawer-field { display: flex; flex-direction: column; gap: 2px }
+.drawer-field-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .7px;
+}
+.drawer-field-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.drawer-field-value.mono {
+  font-family: 'Consolas', monospace;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* link no nome da instituição na tabela */
+.inst-link {
+  color: var(--azul);
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color .13s;
+}
+.inst-link:hover { border-bottom-color: var(--azul) }
+
+/* chip tipo evento */
+.chip-tipo1 { color: #0e4f7a; background: #dbeafe; border-color: rgba(59,130,246,.35) }
+.chip-tipo2 { color: #5b21b6; background: #ede9fe; border-color: rgba(139,92,246,.35) }
