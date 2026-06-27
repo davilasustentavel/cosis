@@ -31,6 +31,11 @@ export async function renderInstituicoes() {
         <option value="1">Ativa</option>
         <option value="0">Desativada</option>
       </select>
+      <select id="f-visita">
+        <option value="">Visitas (todas)</option>
+        <option value="1">Com visita</option>
+        <option value="0">Sem visita</option>
+      </select>
       <button class="btn btn-ghost btn-sm" id="btn-limpar">Limpar</button>
     </div>
 
@@ -73,7 +78,8 @@ export async function renderInstituicoes() {
         porte_escola, etapas_ensino, endereco, cod_inep,
         coord_lat, coord_lon, utm_norte, utm_leste, utm_zona, ativa,
         municipios(nome, estados(sigla, nome)),
-        localidades(nome)
+        localidades(nome),
+        visitas(count)
       `)
       .order('item')
 
@@ -118,12 +124,17 @@ export async function renderInstituicoes() {
   }
 
   // ── Filtrar ────────────────────────────────────────────────
+  function visitCount(r) {
+    return r.visitas?.[0]?.count ?? 0
+  }
+
   function applyFilters() {
-    const texto = document.getElementById('search').value.toLowerCase()
-    const tipo  = document.getElementById('f-tipo').value
-    const uf    = document.getElementById('f-uf').value
-    const mun   = document.getElementById('f-municipio').value
+    const texto  = document.getElementById('search').value.toLowerCase()
+    const tipo   = document.getElementById('f-tipo').value
+    const uf     = document.getElementById('f-uf').value
+    const mun    = document.getElementById('f-municipio').value
     const status = document.getElementById('f-status').value
+    const visita = document.getElementById('f-visita').value
 
     filteredRows = allRows.filter(r => {
       if (tipo   && String(r.tipo_evento) !== tipo) return false
@@ -131,6 +142,8 @@ export async function renderInstituicoes() {
       if (mun    && r.municipios?.nome !== mun) return false
       if (status === '1' && !r.ativa) return false
       if (status === '0' &&  r.ativa) return false
+      if (visita === '1' && visitCount(r) === 0) return false
+      if (visita === '0' && visitCount(r) > 0)   return false
       if (texto) {
         const haystack = [r.nome, r.municipios?.nome, r.localidades?.nome, r.categoria_adm]
           .filter(Boolean).join(' ').toLowerCase()
@@ -170,6 +183,7 @@ export async function renderInstituicoes() {
             <th style="text-align:center">Município</th>
             <th style="text-align:center">UF</th>
             <th style="text-align:center">Status</th>
+            <th style="text-align:center">Visita</th>
           </tr>
         </thead>
         <tbody>
@@ -185,6 +199,10 @@ export async function renderInstituicoes() {
               <td style="text-align:center">${r.ativa
                 ? '<span class="chip chip-green">Ativa</span>'
                 : '<span class="chip chip-gray">Desativada</span>'
+              }</td>
+              <td style="text-align:center">${visitCount(r) > 0
+                ? `<span class="chip chip-green">${visitCount(r)}</span>`
+                : '<span class="chip chip-gray">—</span>'
               }</td>
             </tr>
           `).join('')}
@@ -373,6 +391,7 @@ export async function renderInstituicoes() {
   document.getElementById('search').addEventListener('input', applyFilters)
   document.getElementById('f-tipo').addEventListener('change', applyFilters)
   document.getElementById('f-status').addEventListener('change', applyFilters)
+  document.getElementById('f-visita').addEventListener('change', applyFilters)
 
   document.getElementById('f-uf').addEventListener('change', () => {
     populateMunicipios(document.getElementById('f-uf').value)
@@ -386,6 +405,7 @@ export async function renderInstituicoes() {
     document.getElementById('f-tipo').value = ''
     document.getElementById('f-uf').value = ''
     document.getElementById('f-status').value = ''
+    document.getElementById('f-visita').value = ''
     populateMunicipios('')
     applyFilters()
   })
