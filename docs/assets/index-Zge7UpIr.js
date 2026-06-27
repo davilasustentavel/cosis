@@ -185,16 +185,16 @@ ${y}`}class O extends Error{constructor({message:e,code:r,cause:s,name:n}){var i
           </tr>
         </thead>
         <tbody>
-          ${o.map(l=>{var u,h,d,f;const c=Zt[l.tipo_evento]??{label:`Tipo ${l.tipo_evento}`,cls:"chip-gray"};return`
+          ${o.map(l=>{var c,u,h,d;return Zt[l.tipo_evento]??`${l.tipo_evento}`,`
             <tr>
               <td style="color:var(--text3);font-size:12px">${l.item}</td>
               <td>
                 <a class="inst-link" data-id="${l.id}">${l.nome}</a>
               </td>
-              <td><span class="chip ${c.cls}">${c.label}</span></td>
+              <td style="text-align:center;font-weight:700;color:var(--text2)">${l.tipo_evento??"—"}</td>
               <td>${l.categoria_adm??"—"}</td>
-              <td>${((u=l.localidades)==null?void 0:u.nome)??"—"}</td>
-              <td>${((h=l.municipios)==null?void 0:h.nome)??"—"} / ${((f=(d=l.municipios)==null?void 0:d.estados)==null?void 0:f.sigla)??"—"}</td>
+              <td>${((c=l.localidades)==null?void 0:c.nome)??"—"}</td>
+              <td>${((u=l.municipios)==null?void 0:u.nome)??"—"} / ${((d=(h=l.municipios)==null?void 0:h.estados)==null?void 0:d.sigla)??"—"}</td>
               <td>${l.ativa?'<span class="chip chip-green">Ativa</span>':'<span class="chip chip-gray">Desativada</span>'}</td>
             </tr>`}).join("")}
         </tbody>

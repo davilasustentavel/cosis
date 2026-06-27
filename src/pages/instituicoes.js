@@ -96,7 +96,7 @@ export async function renderInstituicoes() {
               <td>
                 <a class="inst-link" data-id="${r.id}">${r.nome}</a>
               </td>
-              <td><span class="chip ${tipo.cls}">${tipo.label}</span></td>
+              <td style="text-align:center;font-weight:700;color:var(--text2)">${r.tipo_evento ?? '—'}</td>
               <td>${r.categoria_adm ?? '—'}</td>
               <td>${r.localidades?.nome ?? '—'}</td>
               <td>${r.municipios?.nome ?? '—'} / ${r.municipios?.estados?.sigla ?? '—'}</td>

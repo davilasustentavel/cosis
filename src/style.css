@@ -245,7 +245,7 @@ th {
   background: var(--cinza-pale);
 }
 td {
-  padding: 10px 14px;
+  padding: 6px 14px;
   border-bottom: 1px solid var(--border-light);
   color: var(--text);
 }
