@@ -1,0 +1,13 @@
+node_modules/
+.env
+planilhas/
+sql_*.sql
+*.docx
+*.kmz
+*.kml
+importar.py
+split_sql.py
+split_visitas.py
+aplicar_visitas.py
+aplicar_visitas.ps1
+gerar_doc.js
