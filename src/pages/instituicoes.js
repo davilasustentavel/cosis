@@ -331,11 +331,12 @@ export async function renderInstituicoes() {
     const visitasWrap = document.getElementById('drawer-visitas-wrap')
     visitasWrap.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando visitas…</div>'
 
-    const { data: visitas } = await sb
+    const { data: visitas, error: visitasError } = await sb
       .from('visitas')
-      .select('id, data_visita, periodo, pessoas_total, qtd_palestras, status_validacao, usuarios(nome)')
+      .select('id, data_visita, periodo, pessoas_total, qtd_palestras, status_validacao, usuarios!criado_por(nome)')
       .eq('instituicao_id', r.id)
       .order('data_visita', { ascending: false })
+    if (visitasError) console.error('Erro ao buscar visitas:', visitasError)
 
     if (!visitas || visitas.length === 0) {
       visitasWrap.innerHTML = `
