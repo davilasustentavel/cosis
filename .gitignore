@@ -1,6 +1,7 @@
 node_modules/
 .env
 planilhas/
+sql/
 sql_*.sql
 *.docx
 *.kmz
