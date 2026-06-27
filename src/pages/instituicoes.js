@@ -333,10 +333,18 @@ export async function renderInstituicoes() {
 
     const { data: visitas, error: visitasError } = await sb
       .from('visitas')
-      .select('id, data_visita, periodo, pessoas_total, qtd_palestras, status_validacao, usuarios!criado_por(nome)')
+      .select('id, data_visita, periodo, pessoas_total, qtd_palestras, status_validacao, criado_por')
       .eq('instituicao_id', r.id)
       .order('data_visita', { ascending: false })
     if (visitasError) console.error('Erro ao buscar visitas:', visitasError)
+
+    // Buscar nomes dos usuários separadamente
+    const uuids = [...new Set((visitas ?? []).map(v => v.criado_por).filter(Boolean))]
+    const nomeMap = {}
+    if (uuids.length) {
+      const { data: usrs } = await sb.from('usuarios').select('id, nome').in('id', uuids)
+      ;(usrs ?? []).forEach(u => { nomeMap[u.id] = u.nome })
+    }
 
     if (!visitas || visitas.length === 0) {
       visitasWrap.innerHTML = `
@@ -358,7 +366,7 @@ export async function renderInstituicoes() {
             ${visitas.map(v => `
               <tr>
                 <td style="padding:5px 8px;border-bottom:1px solid var(--border-light)">${formatDate(v.data_visita)}</td>
-                <td style="padding:5px 8px;border-bottom:1px solid var(--border-light)">${v.usuarios?.nome ?? '—'}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid var(--border-light)">${nomeMap[v.criado_por] ?? '—'}</td>
                 <td style="padding:5px 8px;border-bottom:1px solid var(--border-light);text-align:center">${v.pessoas_total ?? '—'}</td>
                 <td style="padding:5px 8px;border-bottom:1px solid var(--border-light);text-align:center">${statusChip(v.status_validacao)}</td>
               </tr>`).join('')}
