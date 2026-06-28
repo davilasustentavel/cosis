@@ -58,11 +58,90 @@ export async function renderUsuarios() {
         </div>
       </div>
     </div>
+
+    <!-- MODAL EDITAR USUÁRIO -->
+    <div class="modal-overlay" id="modal-editar-usuario">
+      <div class="modal modal-sm">
+        <div class="modal-header">
+          <span class="modal-title">Editar Usuário</span>
+          <button class="modal-close" id="btn-fechar-editar">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Nome completo</label>
+            <input id="eu-nome" type="text" placeholder="Nome do usuário">
+          </div>
+          <div class="form-group">
+            <label>E-mail</label>
+            <input id="eu-email" type="email" disabled style="opacity:.6;cursor:not-allowed">
+            <span class="form-hint">O e-mail não pode ser alterado aqui.</span>
+          </div>
+          <div class="form-group">
+            <label>Perfil de acesso</label>
+            <select id="eu-perfil">
+              <option value="campo">Campo — registro de visitas</option>
+              <option value="gestor">Gestor — validação de visitas</option>
+              <option value="admin">Administrador — acesso total</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="eu-ativo">
+              <option value="true">Ativo</option>
+              <option value="false">Inativo</option>
+            </select>
+          </div>
+          <div id="eu-erro" class="form-error hidden"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" id="btn-cancelar-editar">Cancelar</button>
+          <button class="btn btn-primary" id="btn-salvar-editar">Salvar</button>
+        </div>
+      </div>
+    </div>
   `
+
+  let usuarioEditando = null
 
   document.getElementById('btn-novo').addEventListener('click', () => openModal('modal-usuario'))
   document.getElementById('btn-fechar-modal').addEventListener('click', () => closeModal('modal-usuario'))
   document.getElementById('btn-cancelar').addEventListener('click', () => closeModal('modal-usuario'))
+
+  // Fechar modal de edição
+  document.getElementById('btn-fechar-editar').addEventListener('click', () => closeModal('modal-editar-usuario'))
+  document.getElementById('btn-cancelar-editar').addEventListener('click', () => closeModal('modal-editar-usuario'))
+
+  // Salvar edição
+  document.getElementById('btn-salvar-editar').addEventListener('click', async () => {
+    const nome  = document.getElementById('eu-nome').value.trim()
+    const perfil = document.getElementById('eu-perfil').value
+    const ativo = document.getElementById('eu-ativo').value === 'true'
+    const erroEl = document.getElementById('eu-erro')
+    const btnEl  = document.getElementById('btn-salvar-editar')
+
+    erroEl.classList.add('hidden')
+    if (!nome) {
+      erroEl.textContent = 'O nome é obrigatório.'
+      erroEl.classList.remove('hidden')
+      return
+    }
+
+    setLoading(btnEl, true)
+    const { error } = await sb.from('usuarios')
+      .update({ nome, perfil, ativo })
+      .eq('id', usuarioEditando)
+    setLoading(btnEl, false)
+
+    if (error) {
+      erroEl.textContent = error.message
+      erroEl.classList.remove('hidden')
+      return
+    }
+
+    toast('Usuário atualizado!', 'success')
+    closeModal('modal-editar-usuario')
+    loadUsers()
+  })
 
   document.getElementById('btn-salvar').addEventListener('click', async () => {
     const nome   = document.getElementById('u-nome').value.trim()
@@ -127,6 +206,7 @@ export async function renderUsuarios() {
             <th>E-mail</th>
             <th>Perfil</th>
             <th>Status</th>
+            <th style="text-align:center">Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -139,10 +219,27 @@ export async function renderUsuarios() {
                 ? '<span class="chip chip-green">Ativo</span>'
                 : '<span class="chip chip-gray">Inativo</span>'
               }</td>
+              <td style="text-align:center">
+                <button class="btn btn-ghost btn-sm" data-editar-usuario="${u.id}" title="Editar">✏️</button>
+              </td>
             </tr>
           `).join('')}
         </tbody>
       </table>`
+
+    document.querySelectorAll('[data-editar-usuario]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const u = rows.find(r => r.id === btn.dataset.editarUsuario)
+        if (!u) return
+        usuarioEditando = u.id
+        document.getElementById('eu-nome').value = u.nome ?? ''
+        document.getElementById('eu-email').value = u.email ?? ''
+        document.getElementById('eu-perfil').value = u.perfil ?? 'campo'
+        document.getElementById('eu-ativo').value = u.ativo ? 'true' : 'false'
+        document.getElementById('eu-erro').classList.add('hidden')
+        openModal('modal-editar-usuario')
+      })
+    })
   }
 
   loadUsers()
