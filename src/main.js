@@ -1,12 +1,13 @@
 import './style.css'
 import { sb } from './supabase.js'
-import { state, loadProfile, isAdmin } from './state.js'
+import { state, loadProfile, isAdmin, isGestor } from './state.js'
 import { route, notFound, navigate, startRouter } from './router.js'
 import { renderLogin } from './pages/login.js'
 import { renderDashboard } from './pages/dashboard.js'
 import { renderInstituicoes } from './pages/instituicoes.js'
 import { renderVisitas } from './pages/visitas.js'
 import { renderUsuarios } from './pages/usuarios.js'
+import { renderValidacao } from './pages/validacao.js'
 
 async function boot() {
   const { data: { session } } = await sb.auth.getSession()
@@ -36,6 +37,12 @@ async function boot() {
     if (!state.user) { renderLogin(); return }
     if (!isAdmin()) { navigate('/'); return }
     renderUsuarios()
+  })
+
+  route('/validacao', () => {
+    if (!state.user) { renderLogin(); return }
+    if (!isGestor()) { navigate('/'); return }
+    renderValidacao()
   })
 
   notFound(() => navigate('/'))

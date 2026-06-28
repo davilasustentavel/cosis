@@ -264,6 +264,7 @@ tr:hover td { background: var(--azul-pale) }
 .chip-green { color: var(--green); background: var(--green-pale); border-color: rgba(39,174,96,.3) }
 .chip-gray { color: var(--cinza-mid); background: var(--cinza-pale); border-color: var(--cinza-light) }
 .chip-yellow { color: #92400e; background: var(--yellow-pale); border-color: rgba(251,191,36,.4) }
+.chip-red    { color: #7b1010; background: #fde8e8; border-color: rgba(192,57,43,.3) }
 
 /* ── BUTTONS ─────────────────────────────────────────────── */
 .btn {
