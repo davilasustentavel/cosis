@@ -1,11 +1,16 @@
 import { sb } from '../supabase.js'
+import { state, isGestor } from '../state.js'
 import { renderLayout } from '../layout.js'
+import { toast } from '../ui.js'
+import { abrirModalVisita } from '../components/modal-visita.js'
 
 export async function renderVisitas() {
   const main = renderLayout('visitas')
+  const soCampo = !isGestor()   // usuário de campo vê só as próprias visitas
+
   main.innerHTML = `
     <p class="page-title">Visitas</p>
-    <p class="page-subtitle">Registro e acompanhamento de visitas às instituições</p>
+    <p class="page-subtitle">${soCampo ? 'Suas visitas registradas' : 'Registro e acompanhamento de visitas às instituições'}</p>
 
     <div class="filter-bar">
       <select id="vv-status">
@@ -30,23 +35,61 @@ export async function renderVisitas() {
         </div>
       </div>
     </div>
+
+    <!-- Confirmação de exclusão -->
+    <div class="modal-overlay" id="modal-excluir">
+      <div class="modal" style="max-width:380px;width:95vw">
+        <div class="modal-header">
+          <div style="font-size:15px;font-weight:700;color:var(--text)">Excluir Visita</div>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:14px;color:var(--text2)">Tem certeza que deseja excluir esta visita? Esta ação não pode ser desfeita.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" id="excluir-cancelar">Cancelar</button>
+          <button class="btn" style="background:#c0392b;color:white" id="excluir-confirmar">Excluir</button>
+        </div>
+      </div>
+    </div>
   `
 
-  const { data } = await sb
-    .from('visitas')
-    .select(`
-      id, data_visita, periodo, status_validacao, motivo_negacao,
-      validado_por, pessoas_total, qtd_palestras,
-      instituicoes(item, nome, municipios(nome, estados(sigla)))
-    `)
-    .order('data_visita', { ascending: false })
+  let allRows = []
+  let instMap = {}       // id → objeto instituicao (para reabrir modal)
+  let visitaParaExcluir = null
 
-  const allRows = data ?? []
+  async function load() {
+    let query = sb
+      .from('visitas')
+      .select(`
+        id, data_visita, periodo, status_validacao, motivo_negacao,
+        validado_por, pessoas_total, qtd_palestras, criado_por,
+        pessoas_ate12, pessoas_13a17, pessoas_18mais,
+        kits_instituicao, kits_crianca, kits_adolescente, kits_adulto,
+        pessoa_contato, telefone,
+        coord_lat, coord_lon, utm_norte, utm_leste, utm_zona,
+        instituicoes(id, nome, tipo_evento, municipios(nome, estados(sigla)))
+      `)
+      .order('data_visita', { ascending: false })
 
-  // Popular filtros UF / Município
-  const ufs = [...new Set(allRows.map(v => v.instituicoes?.municipios?.estados?.sigla).filter(Boolean))].sort()
-  const fUf = document.getElementById('vv-uf')
-  ufs.forEach(uf => { const o = document.createElement('option'); o.value = uf; o.textContent = uf; fUf.appendChild(o) })
+    // Campo vê só as próprias
+    if (soCampo) query = query.eq('criado_por', state.user.id)
+
+    const { data } = await query
+    allRows = data ?? []
+
+    // Mapear instituições para uso no modal de edição
+    allRows.forEach(v => {
+      if (v.instituicoes) instMap[v.instituicoes.id] = v.instituicoes
+    })
+
+    // UFs para filtro
+    const ufs = [...new Set(allRows.map(v => v.instituicoes?.municipios?.estados?.sigla).filter(Boolean))].sort()
+    const fUf = document.getElementById('vv-uf')
+    fUf.innerHTML = '<option value="">UF (todas)</option>'
+    ufs.forEach(uf => { const o = document.createElement('option'); o.value = uf; o.textContent = uf; fUf.appendChild(o) })
+
+    applyFilters()
+  }
 
   function popularMunicipios(uf) {
     const fMun = document.getElementById('vv-municipio')
@@ -85,6 +128,8 @@ export async function renderVisitas() {
       return
     }
 
+    const podEditar = v => v.status_validacao === 'pendente' || v.status_validacao === 'rejeitada'
+
     document.getElementById('table-wrap').innerHTML = `
       <table>
         <thead>
@@ -95,6 +140,7 @@ export async function renderVisitas() {
             <th>Período</th>
             <th style="text-align:center">Pessoas</th>
             <th style="text-align:center">Status</th>
+            ${soCampo ? '<th style="text-align:center">Ações</th>' : ''}
           </tr>
         </thead>
         <tbody>
@@ -106,19 +152,60 @@ export async function renderVisitas() {
               <td>${v.periodo ?? '—'}</td>
               <td style="text-align:center">${v.pessoas_total ?? '—'}</td>
               <td style="text-align:center">${statusChip(v.status_validacao)}</td>
+              ${soCampo ? `
+              <td style="text-align:center;white-space:nowrap">
+                ${podEditar(v) ? `
+                  <button class="btn btn-ghost btn-sm" data-editar="${v.id}" title="Editar">✏️</button>
+                  <button class="btn btn-ghost btn-sm" data-excluir="${v.id}" title="Excluir" style="color:#c0392b">🗑️</button>
+                ` : '<span style="color:var(--text3);font-size:11px">—</span>'}
+              </td>` : ''}
             </tr>
             ${v.status_validacao === 'rejeitada' && v.motivo_negacao ? `
             <tr>
-              <td colspan="6" style="padding:4px 14px 10px;font-size:12px;color:#c0392b;background:#fff5f5;border-bottom:1px solid #fcd">
+              <td colspan="${soCampo ? 7 : 6}" style="padding:4px 14px 10px;font-size:12px;color:#c0392b;background:#fff5f5;border-bottom:1px solid #fcd">
                 <strong>Motivo da rejeição:</strong> ${v.motivo_negacao}
                 ${v.validado_por ? `<span style="color:var(--text3)"> — por ${v.validado_por}</span>` : ''}
+                ${soCampo ? `<span style="margin-left:8px;font-size:11px;color:var(--azul)">↑ Edite e reenvie para nova validação</span>` : ''}
               </td>
             </tr>` : ''}
           `).join('')}
         </tbody>
       </table>`
+
+    // Editar
+    document.querySelectorAll('[data-editar]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const v = allRows.find(r => r.id === +btn.dataset.editar)
+        if (!v) return
+        const inst = v.instituicoes ?? instMap[v.instituicoes?.id]
+        abrirModalVisita(inst, load, v)
+      })
+    })
+
+    // Excluir
+    document.querySelectorAll('[data-excluir]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        visitaParaExcluir = +btn.dataset.excluir
+        document.getElementById('modal-excluir').classList.add('open')
+      })
+    })
   }
 
+  // ── Modal exclusão ────────────────────────────────────────
+  document.getElementById('excluir-cancelar').addEventListener('click', () =>
+    document.getElementById('modal-excluir').classList.remove('open'))
+  document.getElementById('modal-excluir').addEventListener('click', e => {
+    if (e.target === e.currentTarget) document.getElementById('modal-excluir').classList.remove('open')
+  })
+  document.getElementById('excluir-confirmar').addEventListener('click', async () => {
+    document.getElementById('modal-excluir').classList.remove('open')
+    const { error } = await sb.from('visitas').delete().eq('id', visitaParaExcluir)
+    if (error) { toast('Erro ao excluir: ' + error.message, 'error'); return }
+    toast('Visita excluída.', '')
+    await load()
+  })
+
+  // ── Filtros ───────────────────────────────────────────────
   document.getElementById('vv-uf').addEventListener('change', () => {
     popularMunicipios(document.getElementById('vv-uf').value)
     document.getElementById('vv-municipio').value = ''
@@ -134,7 +221,7 @@ export async function renderVisitas() {
     applyFilters()
   })
 
-  applyFilters()
+  load()
 }
 
 function formatDate(d) {

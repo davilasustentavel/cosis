@@ -40,7 +40,9 @@ function wgs84ToUtm(lat, lon) {
   return { zone: `${zone}${lat < 0 ? 'S' : 'N'}`, leste, norte }
 }
 
-export function abrirModalVisita(instituicao, onSaved) {
+// visita = null → criar novo | visita = objeto → editar existente
+export function abrirModalVisita(instituicao, onSaved, visita = null) {
+  const editando = visita !== null
   const existing = document.getElementById('modal-visita-overlay')
   if (existing) existing.remove()
 
@@ -53,8 +55,9 @@ export function abrirModalVisita(instituicao, onSaved) {
     <div class="modal" style="max-width:620px;width:95vw">
       <div class="modal-header">
         <div>
-          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:2px">Nova Visita</div>
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:2px">${editando ? 'Editar Visita' : 'Nova Visita'}</div>
           <div style="font-size:15px;font-weight:700;color:var(--text)">${instituicao.nome}</div>
+          ${editando && visita.status_validacao === 'rejeitada' ? `<div style="font-size:11px;color:#c0392b;margin-top:4px">⚠️ Visita rejeitada — editar irá reenviar para validação</div>` : ''}
         </div>
         <button class="drawer-close" id="modal-visita-close">✕</button>
       </div>
@@ -168,7 +171,7 @@ export function abrirModalVisita(instituicao, onSaved) {
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" id="mv-cancelar">Cancelar</button>
-        <button class="btn btn-primary" id="mv-salvar">Salvar Visita</button>
+        <button class="btn btn-primary" id="mv-salvar">${editando ? 'Salvar Alterações' : 'Salvar Visita'}</button>
       </div>
     </div>
   `
@@ -233,6 +236,31 @@ export function abrirModalVisita(instituicao, onSaved) {
     document.getElementById('mv-13a17').addEventListener('input', atualizarTotaisEKits)
   }
   document.getElementById('mv-18mais').addEventListener('input', atualizarTotaisEKits)
+
+  // ── Pré-preencher campos no modo edição ──────────────────
+  if (editando) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val }
+    set('mv-data',      visita.data_visita)
+    set('mv-periodo',   visita.periodo)
+    set('mv-palestras', visita.qtd_palestras ?? '')
+    set('mv-contato',   visita.pessoa_contato ?? '')
+    set('mv-telefone',  visita.telefone ?? '')
+    set('mv-lat',       visita.coord_lat ?? '')
+    set('mv-lon',       visita.coord_lon ?? '')
+    if (!tipo2) {
+      set('mv-ate12',  visita.pessoas_ate12  ?? 0)
+      set('mv-13a17',  visita.pessoas_13a17  ?? 0)
+    }
+    set('mv-18mais',    visita.pessoas_18mais ?? 0)
+    if (!tipo2) {
+      set('mv-kit-cri', visita.kits_crianca     ?? 0)
+      set('mv-kit-ado', visita.kits_adolescente ?? 0)
+    }
+    set('mv-kit-inst',  visita.kits_instituicao ?? 0)
+    set('mv-kit-adu',   visita.kits_adulto      ?? 0)
+    if (visita.coord_lat && visita.coord_lon) atualizarUtm()
+    atualizarTotaisEKits()
+  }
 
   // ── Preview de fotos ─────────────────────────────────────
   let fotosParaUpload = []
@@ -313,24 +341,46 @@ export function abrirModalVisita(instituicao, onSaved) {
       status_validacao: 'pendente',
     }
 
-    const { data: visita, error } = await sb.from('visitas').insert(payload).select().single()
-    if (error) {
-      erroEl.textContent = 'Erro ao salvar: ' + error.message
-      erroEl.classList.remove('hidden')
-      btn.disabled = false
-      btn.textContent = 'Salvar Visita'
-      return
+    // Se editando visita rejeitada → volta para pendente
+    if (editando && visita.status_validacao === 'rejeitada') {
+      payload.status_validacao = 'pendente'
+      payload.motivo_negacao   = null
+      payload.validado_por     = null
+      payload.data_validacao   = null
+    }
+
+    let visitaId
+    if (editando) {
+      const { error } = await sb.from('visitas').update(payload).eq('id', visita.id)
+      if (error) {
+        erroEl.textContent = 'Erro ao salvar: ' + error.message
+        erroEl.classList.remove('hidden')
+        btn.disabled = false
+        btn.textContent = 'Salvar Alterações'
+        return
+      }
+      visitaId = visita.id
+    } else {
+      const { data: nova, error } = await sb.from('visitas').insert(payload).select().single()
+      if (error) {
+        erroEl.textContent = 'Erro ao salvar: ' + error.message
+        erroEl.classList.remove('hidden')
+        btn.disabled = false
+        btn.textContent = 'Salvar Visita'
+        return
+      }
+      visitaId = nova.id
     }
 
     if (fotosParaUpload.length > 0) {
       btn.textContent = 'Enviando fotos…'
       for (const foto of fotosParaUpload) {
         const ext  = foto.name.split('.').pop()
-        const path = `${visita.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+        const path = `${visitaId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
         const { error: upErr } = await sb.storage.from('fotos-visitas').upload(path, foto)
         if (upErr) { console.error('Upload erro:', upErr); continue }
         const { data: { publicUrl } } = sb.storage.from('fotos-visitas').getPublicUrl(path)
-        await sb.from('evidencias').insert({ visita_id: visita.id, tipo: 'foto', url: publicUrl, criado_por: state.user.id })
+        await sb.from('evidencias').insert({ visita_id: visitaId, tipo: 'foto', url: publicUrl, criado_por: state.user.id })
       }
     }
 
