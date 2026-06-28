@@ -1,25 +1,65 @@
 import { sb } from '../supabase.js'
 import { state } from '../state.js'
 
+// ── WGS84 → UTM (Transverse Mercator) ──────────────────────
+function wgs84ToUtm(lat, lon) {
+  const a  = 6378137.0
+  const f  = 1 / 298.257223563
+  const b  = a * (1 - f)
+  const e2 = 1 - (b * b) / (a * a)
+  const e4 = e2 * e2, e6 = e4 * e2
+  const k0 = 0.9996
+
+  const latR = lat * Math.PI / 180
+  const lonR = lon * Math.PI / 180
+  const zone = Math.floor((lon + 180) / 6) + 1
+  const lon0 = ((zone - 1) * 6 - 180 + 3) * Math.PI / 180
+
+  const N  = a / Math.sqrt(1 - e2 * Math.sin(latR) ** 2)
+  const T  = Math.tan(latR) ** 2
+  const C  = (e2 / (1 - e2)) * Math.cos(latR) ** 2
+  const A  = Math.cos(latR) * (lonR - lon0)
+  const ep = e2 / (1 - e2)
+
+  const M = a * (
+    (1 - e2/4 - 3*e4/64 - 5*e6/256) * latR
+    - (3*e2/8 + 3*e4/32 + 45*e6/1024) * Math.sin(2*latR)
+    + (15*e4/256 + 45*e6/1024) * Math.sin(4*latR)
+    - (35*e6/3072) * Math.sin(6*latR)
+  )
+
+  const leste = k0 * N * (
+    A + (1-T+C)*A**3/6 + (5-18*T+T**2+72*C-58*ep)*A**5/120
+  ) + 500000
+
+  let norte = k0 * (M + N * Math.tan(latR) * (
+    A**2/2 + (5-T+9*C+4*C**2)*A**4/24 + (61-58*T+T**2+600*C-330*ep)*A**6/720
+  ))
+  if (lat < 0) norte += 10000000
+
+  return { zone: `${zone}${lat < 0 ? 'S' : 'N'}`, leste, norte }
+}
+
 export function abrirModalVisita(instituicao, onSaved) {
   const existing = document.getElementById('modal-visita-overlay')
   if (existing) existing.remove()
+
+  const tipo2 = instituicao.tipo_evento === 2
 
   const overlay = document.createElement('div')
   overlay.id = 'modal-visita-overlay'
   overlay.className = 'modal-overlay'
   overlay.innerHTML = `
-    <div class="modal" style="max-width:600px;width:95vw">
+    <div class="modal" style="max-width:620px;width:95vw">
       <div class="modal-header">
         <div>
-          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:2px">
-            Nova Visita
-          </div>
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:2px">Nova Visita</div>
           <div style="font-size:15px;font-weight:700;color:var(--text)">${instituicao.nome}</div>
         </div>
         <button class="drawer-close" id="modal-visita-close">✕</button>
       </div>
       <div class="modal-body">
+
         <div class="form-grid">
           <div class="form-group">
             <label>Data da Visita *</label>
@@ -42,9 +82,35 @@ export function abrirModalVisita(instituicao, onSaved) {
             <label>Pessoa de Contato</label>
             <input type="text" id="mv-contato" placeholder="Nome do responsável">
           </div>
-          <div class="form-group">
+          <div class="form-group" style="grid-column:1/-1">
             <label>Telefone</label>
-            <input type="text" id="mv-telefone" placeholder="(00) 00000-0000">
+            <input type="text" id="mv-telefone" placeholder="(00) 00000-0000" style="max-width:200px">
+          </div>
+        </div>
+
+        <div class="form-section-title">Localização GPS</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Latitude (decimal)</label>
+            <input type="number" id="mv-lat" step="any" placeholder="-2.780671">
+          </div>
+          <div class="form-group">
+            <label>Longitude (decimal)</label>
+            <input type="number" id="mv-lon" step="any" placeholder="-43.085666">
+          </div>
+        </div>
+        <div class="form-grid form-grid-4" id="utm-fields" style="opacity:.4;pointer-events:none">
+          <div class="form-group">
+            <label>UTM Norte</label>
+            <input type="text" id="mv-utm-norte" readonly style="background:var(--cinza-pale)">
+          </div>
+          <div class="form-group">
+            <label>UTM Leste</label>
+            <input type="text" id="mv-utm-leste" readonly style="background:var(--cinza-pale)">
+          </div>
+          <div class="form-group">
+            <label>Zona UTM</label>
+            <input type="text" id="mv-utm-zona" readonly style="background:var(--cinza-pale)">
           </div>
         </div>
 
@@ -52,11 +118,11 @@ export function abrirModalVisita(instituicao, onSaved) {
         <div class="form-grid form-grid-4">
           <div class="form-group">
             <label>Até 12 anos</label>
-            <input type="number" id="mv-ate12" min="0" value="0">
+            <input type="number" id="mv-ate12" min="0" value="0" ${tipo2 ? 'disabled style="background:var(--cinza-pale)"' : ''}>
           </div>
           <div class="form-group">
             <label>13 a 17 anos</label>
-            <input type="number" id="mv-13a17" min="0" value="0">
+            <input type="number" id="mv-13a17" min="0" value="0" ${tipo2 ? 'disabled style="background:var(--cinza-pale)"' : ''}>
           </div>
           <div class="form-group">
             <label>18 ou mais</label>
@@ -76,20 +142,20 @@ export function abrirModalVisita(instituicao, onSaved) {
           </div>
           <div class="form-group">
             <label>Criança</label>
-            <input type="number" id="mv-kit-cri" min="0" value="0">
+            <input type="number" id="mv-kit-cri" min="0" value="0" disabled style="background:var(--cinza-pale)">
           </div>
           <div class="form-group">
             <label>Adolescente</label>
-            <input type="number" id="mv-kit-ado" min="0" value="0">
+            <input type="number" id="mv-kit-ado" min="0" value="0" disabled style="background:var(--cinza-pale)">
           </div>
           <div class="form-group">
             <label>Adulto</label>
-            <input type="number" id="mv-kit-adu" min="0" value="0">
+            <input type="number" id="mv-kit-adu" min="0" value="0" disabled style="background:var(--cinza-pale)">
           </div>
         </div>
 
         <div class="form-section-title">Fotos da Visita</div>
-        <div class="foto-upload-area" id="foto-upload-area">
+        <div class="foto-upload-area">
           <input type="file" id="mv-fotos" multiple accept="image/*" style="display:none">
           <div id="foto-preview-grid" class="foto-preview-grid"></div>
           <label for="mv-fotos" class="btn btn-ghost btn-sm" style="cursor:pointer;margin-top:8px">
@@ -109,48 +175,87 @@ export function abrirModalVisita(instituicao, onSaved) {
   document.body.appendChild(overlay)
   requestAnimationFrame(() => overlay.classList.add('open'))
 
-  // Fechar
   const fechar = () => { overlay.classList.remove('open'); setTimeout(() => overlay.remove(), 200) }
   document.getElementById('modal-visita-close').addEventListener('click', fechar)
   document.getElementById('mv-cancelar').addEventListener('click', fechar)
   overlay.addEventListener('click', e => { if (e.target === overlay) fechar() })
 
-  // Auto-calcular total de pessoas
-  const calcTotal = () => {
-    const a = +document.getElementById('mv-ate12').value || 0
-    const b = +document.getElementById('mv-13a17').value || 0
-    const c = +document.getElementById('mv-18mais').value || 0
-    document.getElementById('mv-total').value = a + b + c
+  // ── GPS → UTM ────────────────────────────────────────────
+  function atualizarUtm() {
+    const lat = parseFloat(document.getElementById('mv-lat').value)
+    const lon = parseFloat(document.getElementById('mv-lon').value)
+    const utmWrap = document.getElementById('utm-fields')
+    if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+      const utm = wgs84ToUtm(lat, lon)
+      document.getElementById('mv-utm-norte').value = utm.norte.toFixed(2)
+      document.getElementById('mv-utm-leste').value = utm.leste.toFixed(2)
+      document.getElementById('mv-utm-zona').value  = utm.zone
+      utmWrap.style.opacity = '1'
+      utmWrap.style.pointerEvents = 'none'
+    } else {
+      document.getElementById('mv-utm-norte').value = ''
+      document.getElementById('mv-utm-leste').value = ''
+      document.getElementById('mv-utm-zona').value  = ''
+      utmWrap.style.opacity = '.4'
+    }
   }
-  ;['mv-ate12','mv-13a17','mv-18mais'].forEach(id =>
-    document.getElementById(id).addEventListener('input', calcTotal))
+  document.getElementById('mv-lat').addEventListener('input', atualizarUtm)
+  document.getElementById('mv-lon').addEventListener('input', atualizarUtm)
 
-  // Preview de fotos selecionadas
+  // ── Total de pessoas + controle de kits ─────────────────
+  function atualizarTotaisEKits() {
+    const a12  = +document.getElementById('mv-ate12').value  || 0
+    const a17  = +document.getElementById('mv-13a17').value  || 0
+    const a18  = +document.getElementById('mv-18mais').value || 0
+    document.getElementById('mv-total').value = a12 + a17 + a18
+
+    // Kits habilitados apenas quando há pessoas na faixa
+    const kitCri = document.getElementById('mv-kit-cri')
+    const kitAdo = document.getElementById('mv-kit-ado')
+    const kitAdu = document.getElementById('mv-kit-adu')
+
+    // Tipo 2 → só adultos
+    if (!tipo2) {
+      setKitEnabled(kitCri, a12 > 0)
+      setKitEnabled(kitAdo, a17 > 0)
+    }
+    setKitEnabled(kitAdu, a18 > 0)
+  }
+
+  function setKitEnabled(el, enabled) {
+    el.disabled = !enabled
+    el.style.background = enabled ? '' : 'var(--cinza-pale)'
+    if (!enabled) el.value = '0'
+  }
+
+  if (!tipo2) {
+    document.getElementById('mv-ate12').addEventListener('input', atualizarTotaisEKits)
+    document.getElementById('mv-13a17').addEventListener('input', atualizarTotaisEKits)
+  }
+  document.getElementById('mv-18mais').addEventListener('input', atualizarTotaisEKits)
+
+  // ── Preview de fotos ─────────────────────────────────────
   let fotosParaUpload = []
   document.getElementById('mv-fotos').addEventListener('change', e => {
-    const novos = Array.from(e.target.files)
-    fotosParaUpload = [...fotosParaUpload, ...novos]
+    fotosParaUpload = [...fotosParaUpload, ...Array.from(e.target.files)]
     renderPreviews()
     e.target.value = ''
   })
-
   function renderPreviews() {
     const grid = document.getElementById('foto-preview-grid')
     grid.innerHTML = fotosParaUpload.map((f, i) => `
       <div class="foto-preview-item">
         <img src="${URL.createObjectURL(f)}" alt="${f.name}">
         <button class="foto-preview-remove" data-idx="${i}" title="Remover">✕</button>
-      </div>
-    `).join('')
-    grid.querySelectorAll('.foto-preview-remove').forEach(btn => {
+      </div>`).join('')
+    grid.querySelectorAll('.foto-preview-remove').forEach(btn =>
       btn.addEventListener('click', () => {
         fotosParaUpload.splice(+btn.dataset.idx, 1)
         renderPreviews()
-      })
-    })
+      }))
   }
 
-  // Salvar
+  // ── Salvar ───────────────────────────────────────────────
   document.getElementById('mv-salvar').addEventListener('click', async () => {
     const erroEl = document.getElementById('mv-erro')
     erroEl.classList.add('hidden')
@@ -167,28 +272,44 @@ export function abrirModalVisita(instituicao, onSaved) {
     btn.disabled = true
     btn.textContent = 'Salvando…'
 
+    const lat = parseFloat(document.getElementById('mv-lat').value)
+    const lon = parseFloat(document.getElementById('mv-lon').value)
+    const utmNorteVal = document.getElementById('mv-utm-norte').value
+    const utmLesteVal = document.getElementById('mv-utm-leste').value
+    const utmZonaVal  = document.getElementById('mv-utm-zona').value
+
+    const ate12  = tipo2 ? null : (+document.getElementById('mv-ate12').value  || null)
+    const a13a17 = tipo2 ? null : (+document.getElementById('mv-13a17').value  || null)
+    const a18    = +document.getElementById('mv-18mais').value || null
+    const total  = (ate12 ?? 0) + (a13a17 ?? 0) + (a18 ?? 0) || null
+
+    const kitCri = tipo2 ? null : (+document.getElementById('mv-kit-cri').value || null)
+    const kitAdo = tipo2 ? null : (+document.getElementById('mv-kit-ado').value || null)
+    const kitAdu = +document.getElementById('mv-kit-adu').value || null
+    const kitInst= +document.getElementById('mv-kit-inst').value || null
+    const kitTot = (kitInst ?? 0) + (kitCri ?? 0) + (kitAdo ?? 0) + (kitAdu ?? 0) || null
+
     const payload = {
-      instituicao_id: instituicao.id,
-      data_visita,
-      periodo,
-      qtd_palestras:   +document.getElementById('mv-palestras').value || null,
-      pessoas_ate12:   +document.getElementById('mv-ate12').value    || null,
-      pessoas_13a17:   +document.getElementById('mv-13a17').value    || null,
-      pessoas_18mais:  +document.getElementById('mv-18mais').value   || null,
-      pessoas_total:   +document.getElementById('mv-total').value    || null,
-      kits_instituicao:+document.getElementById('mv-kit-inst').value || null,
-      kits_crianca:    +document.getElementById('mv-kit-cri').value  || null,
-      kits_adolescente:+document.getElementById('mv-kit-ado').value  || null,
-      kits_adulto:     +document.getElementById('mv-kit-adu').value  || null,
-      kits_total: (
-        (+document.getElementById('mv-kit-inst').value || 0) +
-        (+document.getElementById('mv-kit-cri').value  || 0) +
-        (+document.getElementById('mv-kit-ado').value  || 0) +
-        (+document.getElementById('mv-kit-adu').value  || 0)
-      ) || null,
-      pessoa_contato:  document.getElementById('mv-contato').value.trim()  || null,
-      telefone:        document.getElementById('mv-telefone').value.trim() || null,
-      criado_por:      state.user.id,
+      instituicao_id:   instituicao.id,
+      data_visita, periodo,
+      qtd_palestras:    +document.getElementById('mv-palestras').value || null,
+      pessoas_ate12:    ate12,
+      pessoas_13a17:    a13a17,
+      pessoas_18mais:   a18,
+      pessoas_total:    total,
+      kits_instituicao: kitInst,
+      kits_crianca:     kitCri,
+      kits_adolescente: kitAdo,
+      kits_adulto:      kitAdu,
+      kits_total:       kitTot,
+      pessoa_contato:   document.getElementById('mv-contato').value.trim()  || null,
+      telefone:         document.getElementById('mv-telefone').value.trim() || null,
+      coord_lat:        !isNaN(lat) ? lat : null,
+      coord_lon:        !isNaN(lon) ? lon : null,
+      utm_norte:        utmNorteVal ? parseFloat(utmNorteVal) : null,
+      utm_leste:        utmLesteVal ? parseFloat(utmLesteVal) : null,
+      utm_zona:         utmZonaVal  || null,
+      criado_por:       state.user.id,
       status_validacao: 'pendente',
     }
 
@@ -201,7 +322,6 @@ export function abrirModalVisita(instituicao, onSaved) {
       return
     }
 
-    // Upload das fotos
     if (fotosParaUpload.length > 0) {
       btn.textContent = 'Enviando fotos…'
       for (const foto of fotosParaUpload) {
@@ -210,12 +330,7 @@ export function abrirModalVisita(instituicao, onSaved) {
         const { error: upErr } = await sb.storage.from('fotos-visitas').upload(path, foto)
         if (upErr) { console.error('Upload erro:', upErr); continue }
         const { data: { publicUrl } } = sb.storage.from('fotos-visitas').getPublicUrl(path)
-        await sb.from('evidencias').insert({
-          visita_id: visita.id,
-          tipo: 'foto',
-          url: publicUrl,
-          criado_por: state.user.id,
-        })
+        await sb.from('evidencias').insert({ visita_id: visita.id, tipo: 'foto', url: publicUrl, criado_por: state.user.id })
       }
     }
 
