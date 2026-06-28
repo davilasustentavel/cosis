@@ -28,7 +28,7 @@ export async function renderInstituicoes() {
       </select>
       <select id="f-status">
         <option value="">Status (todos)</option>
-        <option value="1">Ativa</option>
+        <option value="1" selected>Ativa</option>
         <option value="0">Desativada</option>
       </select>
       <select id="f-visita">
@@ -413,7 +413,7 @@ export async function renderInstituicoes() {
     document.getElementById('search').value = ''
     document.getElementById('f-tipo').value = ''
     document.getElementById('f-uf').value = ''
-    document.getElementById('f-status').value = ''
+    document.getElementById('f-status').value = '1'
     document.getElementById('f-visita').value = ''
     populateMunicipios('')
     applyFilters()
