@@ -645,3 +645,119 @@ input[disabled], select[disabled] { background: var(--cinza-pale); color: var(--
 /* chip tipo evento */
 .chip-tipo1 { color: #0e4f7a; background: #dbeafe; border-color: rgba(59,130,246,.35) }
 .chip-tipo2 { color: #5b21b6; background: #ede9fe; border-color: rgba(139,92,246,.35) }
+
+/* ── MODAL ────────────────────────────────────────────────── */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,.45);
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex }
+.modal {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column;
+  max-height: 90vh; overflow: hidden;
+}
+.modal-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 20px 24px 16px; border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+.modal-body {
+  padding: 20px 24px; overflow-y: auto; flex: 1;
+}
+.modal-footer {
+  padding: 14px 24px; border-top: 1px solid var(--border-light);
+  display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0;
+}
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin-bottom: 16px }
+.form-grid-4 { grid-template-columns: repeat(4,1fr) }
+.form-section-title {
+  font-size: 11px; font-weight: 800; color: var(--text3);
+  text-transform: uppercase; letter-spacing: .7px;
+  margin: 16px 0 10px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-light);
+}
+.form-group { display: flex; flex-direction: column; gap: 4px }
+.form-group label { font-size: 11px; font-weight: 700; color: var(--text2) }
+.form-group input, .form-group select {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 7px 10px; font-size: 13px; font-family: inherit;
+  color: var(--text); background: var(--white); outline: none;
+  transition: border-color .15s;
+}
+.form-group input:focus, .form-group select:focus { border-color: var(--azul) }
+
+/* ── UPLOAD DE FOTOS ──────────────────────────────────────── */
+.foto-upload-area {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 16px; text-align: center; background: var(--cinza-pale);
+}
+.foto-preview-grid {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 4px;
+}
+.foto-preview-item {
+  position: relative; width: 80px; height: 80px;
+}
+.foto-preview-item img {
+  width: 100%; height: 100%; object-fit: cover;
+  border-radius: 6px; border: 1px solid var(--border);
+}
+.foto-preview-remove {
+  position: absolute; top: -6px; right: -6px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--red); color: white;
+  border: none; cursor: pointer; font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── LIGHTBOX ─────────────────────────────────────────────── */
+.lightbox-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 900;
+  background: rgba(0,0,0,.92);
+  align-items: center; justify-content: center;
+}
+.lightbox-overlay.open { display: flex }
+.lightbox-content {
+  display: flex; flex-direction: column; align-items: center;
+  max-width: calc(100vw - 120px); max-height: 90vh;
+}
+.lightbox-content img {
+  max-width: 100%; max-height: calc(90vh - 40px);
+  object-fit: contain; border-radius: 4px;
+}
+.lightbox-counter {
+  color: rgba(255,255,255,.7); font-size: 12px;
+  margin-top: 10px; font-weight: 600;
+}
+.lightbox-close {
+  position: fixed; top: 16px; right: 20px;
+  background: rgba(255,255,255,.15); border: none; color: white;
+  font-size: 22px; width: 40px; height: 40px; border-radius: 50%;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+.lightbox-close:hover { background: rgba(255,255,255,.3) }
+.lightbox-nav {
+  position: fixed; top: 50%; transform: translateY(-50%);
+  background: rgba(255,255,255,.15); border: none; color: white;
+  font-size: 36px; width: 50px; height: 50px; border-radius: 50%;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+.lightbox-nav:hover { background: rgba(255,255,255,.3) }
+.lightbox-prev { left: 16px }
+.lightbox-next { right: 16px }
+
+/* ── BOTÃO FOTOS NA TABELA ────────────────────────────────── */
+.btn-fotos {
+  background: var(--azul-light); border: 1px solid rgba(0,127,172,.3);
+  color: var(--azul); border-radius: 20px; padding: 2px 8px;
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  transition: background .15s;
+}
+.btn-fotos:hover { background: var(--azul); color: white }

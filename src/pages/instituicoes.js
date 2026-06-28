@@ -1,5 +1,7 @@
 import { sb } from '../supabase.js'
 import { renderLayout } from '../layout.js'
+import { abrirModalVisita } from '../components/modal-visita.js'
+import { abrirLightbox } from '../components/lightbox.js'
 
 const TIPO_LABEL = { 1: 'Tipo 01 — Escola', 2: 'Tipo 02 — Órgão / Assoc.' }
 const TIPO_CLS   = { 1: 'chip-tipo1', 2: 'chip-tipo2' }
@@ -321,37 +323,58 @@ export async function renderInstituicoes() {
       </div>
 
       <div class="drawer-section">
-        <div class="drawer-section-title">Visitas Realizadas</div>
+        <div class="drawer-section-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>Visitas Realizadas</span>
+          <button class="btn btn-primary btn-sm" id="btn-nova-visita">+ Nova Visita</button>
+        </div>
         <div id="drawer-visitas-wrap"></div>
       </div>
     `
     document.getElementById('inst-drawer-overlay').classList.add('open')
 
-    // Buscar visitas dessa instituição
-    const visitasWrap = document.getElementById('drawer-visitas-wrap')
-    visitasWrap.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando visitas…</div>'
+    document.getElementById('btn-nova-visita').addEventListener('click', () => {
+      abrirModalVisita(r, () => carregarVisitas(r))
+    })
 
-    const { data: visitas, error: visitasError } = await sb
-      .from('visitas')
-      .select('id, data_visita, periodo, pessoas_total, qtd_palestras, status_validacao, criado_por')
-      .eq('instituicao_id', r.id)
-      .order('data_visita', { ascending: false })
-    if (visitasError) console.error('Erro ao buscar visitas:', visitasError)
+    async function carregarVisitas(inst) {
+      const visitasWrap = document.getElementById('drawer-visitas-wrap')
+      if (!visitasWrap) return
+      visitasWrap.innerHTML = '<div class="loading"><div class="spinner"></div> Carregando visitas…</div>'
 
-    // Buscar nomes dos usuários separadamente
-    const uuids = [...new Set((visitas ?? []).map(v => v.criado_por).filter(Boolean))]
-    const nomeMap = {}
-    if (uuids.length) {
-      const { data: usrs } = await sb.from('usuarios').select('id, nome').in('id', uuids)
-      ;(usrs ?? []).forEach(u => { nomeMap[u.id] = u.nome })
-    }
+      const { data: visitas, error: visitasError } = await sb
+        .from('visitas')
+        .select('id, data_visita, periodo, pessoas_total, qtd_palestras, status_validacao, criado_por')
+        .eq('instituicao_id', inst.id)
+        .order('data_visita', { ascending: false })
+      if (visitasError) console.error('Erro ao buscar visitas:', visitasError)
 
-    if (!visitas || visitas.length === 0) {
-      visitasWrap.innerHTML = `
-        <div style="color:var(--text3);font-size:12px;padding:12px 0;text-align:center">
-          Nenhuma visita registrada para esta instituição
-        </div>`
-    } else {
+      // Nomes dos usuários
+      const uuids = [...new Set((visitas ?? []).map(v => v.criado_por).filter(Boolean))]
+      const nomeMap = {}
+      if (uuids.length) {
+        const { data: usrs } = await sb.from('usuarios').select('id, nome').in('id', uuids)
+        ;(usrs ?? []).forEach(u => { nomeMap[u.id] = u.nome })
+      }
+
+      // Evidências (fotos) agrupadas por visita
+      const visita_ids = (visitas ?? []).map(v => v.id)
+      const fotoMap = {}
+      if (visita_ids.length) {
+        const { data: evids } = await sb.from('evidencias').select('visita_id, url').in('visita_id', visita_ids).eq('tipo', 'foto')
+        ;(evids ?? []).forEach(e => {
+          if (!fotoMap[e.visita_id]) fotoMap[e.visita_id] = []
+          fotoMap[e.visita_id].push(e.url)
+        })
+      }
+
+      if (!visitas || visitas.length === 0) {
+        visitasWrap.innerHTML = `
+          <div style="color:var(--text3);font-size:12px;padding:12px 0;text-align:center">
+            Nenhuma visita registrada para esta instituição
+          </div>`
+        return
+      }
+
       visitasWrap.innerHTML = `
         <table style="width:100%;font-size:12px;border-collapse:collapse">
           <thead>
@@ -360,19 +383,40 @@ export async function renderInstituicoes() {
               <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border-light)">Responsável</th>
               <th style="text-align:center;padding:5px 8px;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border-light)">Pessoas</th>
               <th style="text-align:center;padding:5px 8px;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border-light)">Situação</th>
+              <th style="text-align:center;padding:5px 8px;font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;border-bottom:1px solid var(--border-light)">Fotos</th>
             </tr>
           </thead>
           <tbody>
-            ${visitas.map(v => `
+            ${visitas.map(v => {
+              const fotos = fotoMap[v.id] ?? []
+              const fotoBtn = fotos.length > 0
+                ? `<button class="btn-fotos" data-visita-id="${v.id}" title="Ver ${fotos.length} foto(s)">📷 ${fotos.length}</button>`
+                : `<span style="color:var(--text3)">—</span>`
+              return `
               <tr>
                 <td style="padding:5px 8px;border-bottom:1px solid var(--border-light)">${formatDate(v.data_visita)}</td>
                 <td style="padding:5px 8px;border-bottom:1px solid var(--border-light)">${nomeMap[v.criado_por] ?? '—'}</td>
                 <td style="padding:5px 8px;border-bottom:1px solid var(--border-light);text-align:center">${v.pessoas_total ?? '—'}</td>
                 <td style="padding:5px 8px;border-bottom:1px solid var(--border-light);text-align:center">${statusChip(v.status_validacao)}</td>
-              </tr>`).join('')}
+                <td style="padding:5px 8px;border-bottom:1px solid var(--border-light);text-align:center">${fotoBtn}</td>
+              </tr>`
+            }).join('')}
           </tbody>
         </table>`
+
+      // Lightbox ao clicar no botão de fotos
+      visitasWrap.querySelectorAll('.btn-fotos').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const vid = +btn.dataset.visitaId
+          abrirLightbox(fotoMap[vid] ?? [], 0)
+        })
+      })
+
+      // Recarregar contagem na tabela principal
+      load()
     }
+
+    carregarVisitas(r)
   }
 
   function formatDate(d) {
