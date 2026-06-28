@@ -26,6 +26,7 @@ export async function renderVisitas() {
       </select>
       <select id="vv-uf"><option value="">UF (todas)</option></select>
       <select id="vv-municipio"><option value="">Município (todos)</option></select>
+      <select id="vv-instituicao"><option value="">Instituição (todas)</option></select>
       <button class="btn btn-ghost btn-sm" id="vv-limpar">Limpar</button>
     </div>
 
@@ -59,7 +60,8 @@ export async function renderVisitas() {
   `
 
   let allRows = []
-  let instMap = {}       // id → objeto instituicao (para reabrir modal)
+  let nomeMap = {}
+  let instMap = {}
   let visitaParaExcluir = null
 
   async function load() {
@@ -76,11 +78,18 @@ export async function renderVisitas() {
       `)
       .order('data_visita', { ascending: false })
 
-    // Campo vê só as próprias
     if (soCampo) query = query.eq('criado_por', state.user.id)
 
     const { data } = await query
     allRows = data ?? []
+
+    // Nomes dos responsáveis
+    const uuids = [...new Set(allRows.map(v => v.criado_por).filter(Boolean))]
+    nomeMap = {}
+    if (uuids.length) {
+      const { data: usrs } = await sb.from('usuarios').select('id, nome').in('id', uuids)
+      ;(usrs ?? []).forEach(u => { nomeMap[u.id] = u.nome })
+    }
 
     // Mapear instituições para uso no modal de edição
     allRows.forEach(v => {
@@ -93,6 +102,7 @@ export async function renderVisitas() {
     fUf.innerHTML = '<option value="">UF (todas)</option>'
     ufs.forEach(uf => { const o = document.createElement('option'); o.value = uf; o.textContent = uf; fUf.appendChild(o) })
 
+    popularInstituicoes()
     applyFilters()
   }
 
@@ -106,10 +116,31 @@ export async function renderVisitas() {
     muns.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; fMun.appendChild(o) })
   }
 
+  function popularInstituicoes(uf, mun) {
+    const fInst = document.getElementById('vv-instituicao')
+    const atual = fInst.value
+    fInst.innerHTML = '<option value="">Instituição (todas)</option>'
+    const insts = [...new Map(
+      allRows
+        .filter(v => (!uf  || v.instituicoes?.municipios?.estados?.sigla === uf)
+                  && (!mun || v.instituicoes?.municipios?.nome === mun))
+        .map(v => [v.instituicoes?.id, v.instituicoes?.nome])
+        .filter(([id]) => id)
+    )].sort((a, b) => a[1]?.localeCompare(b[1]))
+    insts.forEach(([id, nome]) => {
+      const o = document.createElement('option')
+      o.value = id
+      o.textContent = nome
+      if (id === atual) o.selected = true
+      fInst.appendChild(o)
+    })
+  }
+
   function applyFilters() {
-    const st  = document.getElementById('vv-status').value
-    const uf  = document.getElementById('vv-uf').value
-    const mun = document.getElementById('vv-municipio').value
+    const st   = document.getElementById('vv-status').value
+    const uf   = document.getElementById('vv-uf').value
+    const mun  = document.getElementById('vv-municipio').value
+    const inst = document.getElementById('vv-instituicao').value
 
     const rows = allRows.filter(v => {
       if (st === 'pendente+rejeitada') {
@@ -117,12 +148,16 @@ export async function renderVisitas() {
       } else if (st) {
         if (v.status_validacao !== st) return false
       }
-      if (uf  && v.instituicoes?.municipios?.estados?.sigla !== uf) return false
-      if (mun && v.instituicoes?.municipios?.nome !== mun) return false
+      if (uf   && v.instituicoes?.municipios?.estados?.sigla !== uf)  return false
+      if (mun  && v.instituicoes?.municipios?.nome !== mun)            return false
+      if (inst && v.instituicoes?.id !== inst)                         return false
       return true
     })
     renderTable(rows)
   }
+
+  // colspan total: campo=8, gestor=8 (ambos têm mesmo nº de colunas agora)
+  const totalCols = soCampo ? 8 : 8
 
   function renderTable(rows) {
     document.getElementById('count-label').textContent = `${rows.length} de ${allRows.length} visitas`
@@ -149,7 +184,8 @@ export async function renderVisitas() {
             <th>Período</th>
             <th style="text-align:center">Pessoas</th>
             <th style="text-align:center">Status</th>
-            ${soCampo ? '<th style="text-align:center">Ações</th>' : ''}
+            ${!soCampo ? '<th>Responsável</th>' : ''}
+            <th style="text-align:center">Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -161,17 +197,17 @@ export async function renderVisitas() {
               <td>${v.periodo ?? '—'}</td>
               <td style="text-align:center">${v.pessoas_total ?? '—'}</td>
               <td style="text-align:center">${statusChip(v.status_validacao)}</td>
-              ${soCampo ? `
+              ${!soCampo ? `<td style="white-space:nowrap">${nomeMap[v.criado_por] ?? '—'}</td>` : ''}
               <td style="text-align:center;white-space:nowrap">
                 ${podEditar(v) ? `
                   <button class="btn btn-ghost btn-sm" data-editar="${v.id}" title="Editar">✏️</button>
                   <button class="btn btn-ghost btn-sm" data-excluir="${v.id}" title="Excluir" style="color:#c0392b">🗑️</button>
                 ` : '<span style="color:var(--text3);font-size:11px">—</span>'}
-              </td>` : ''}
+              </td>
             </tr>
             ${v.status_validacao === 'rejeitada' && v.motivo_negacao ? `
             <tr>
-              <td colspan="${soCampo ? 7 : 6}" style="padding:4px 14px 10px;font-size:12px;color:#c0392b;background:#fff5f5;border-bottom:1px solid #fcd">
+              <td colspan="${totalCols}" style="padding:4px 14px 10px;font-size:12px;color:#c0392b;background:#fff5f5;border-bottom:1px solid #fcd">
                 <strong>Motivo da rejeição:</strong> ${v.motivo_negacao}
                 ${v.validado_por ? `<span style="color:var(--text3)"> — por ${v.validado_por}</span>` : ''}
                 ${soCampo ? `<span style="margin-left:8px;font-size:11px;color:var(--azul)">↑ Edite e reenvie para nova validação</span>` : ''}
@@ -216,17 +252,32 @@ export async function renderVisitas() {
 
   // ── Filtros ───────────────────────────────────────────────
   document.getElementById('vv-uf').addEventListener('change', () => {
-    popularMunicipios(document.getElementById('vv-uf').value)
+    const uf = document.getElementById('vv-uf').value
+    popularMunicipios(uf)
     document.getElementById('vv-municipio').value = ''
+    popularInstituicoes(uf, '')
+    document.getElementById('vv-instituicao').value = ''
     applyFilters()
   })
-  ;['vv-status','vv-municipio'].forEach(id =>
+
+  document.getElementById('vv-municipio').addEventListener('change', () => {
+    const uf  = document.getElementById('vv-uf').value
+    const mun = document.getElementById('vv-municipio').value
+    popularInstituicoes(uf, mun)
+    document.getElementById('vv-instituicao').value = ''
+    applyFilters()
+  })
+
+  ;['vv-status', 'vv-instituicao'].forEach(id =>
     document.getElementById(id).addEventListener('change', applyFilters))
 
   document.getElementById('vv-limpar').addEventListener('click', () => {
     document.getElementById('vv-status').value = soCampo ? 'pendente+rejeitada' : ''
     document.getElementById('vv-uf').value = ''
+    document.getElementById('vv-municipio').value = ''
+    document.getElementById('vv-instituicao').value = ''
     popularMunicipios('')
+    popularInstituicoes()
     applyFilters()
   })
 
