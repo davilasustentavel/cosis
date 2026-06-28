@@ -77,17 +77,20 @@ export function abrirModalVisita(instituicao, onSaved, visita = null) {
               <option value="Manhã/Tarde">Manhã/Tarde</option>
             </select>
           </div>
+        </div>
+
+        <div class="form-grid" style="grid-template-columns:100px 1fr 160px">
           <div class="form-group">
             <label>Qtd. Palestras</label>
-            <input type="number" id="mv-palestras" min="0" value="1">
+            <input type="number" id="mv-palestras" min="0" value="1" style="text-align:center">
           </div>
           <div class="form-group">
             <label>Pessoa de Contato</label>
             <input type="text" id="mv-contato" placeholder="Nome do responsável">
           </div>
-          <div class="form-group" style="grid-column:1/-1">
+          <div class="form-group">
             <label>Telefone</label>
-            <input type="text" id="mv-telefone" placeholder="(00) 00000-0000" style="max-width:200px">
+            <input type="text" id="mv-telefone" placeholder="(00)00000-0000" maxlength="15">
           </div>
         </div>
 
@@ -204,6 +207,24 @@ export function abrirModalVisita(instituicao, onSaved, visita = null) {
   }
   document.getElementById('mv-lat').addEventListener('input', atualizarUtm)
   document.getElementById('mv-lon').addEventListener('input', atualizarUtm)
+
+  // ── Máscara de telefone ──────────────────────────────────
+  document.getElementById('mv-telefone').addEventListener('input', e => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 11)
+    let mask = ''
+    if (digits.length === 0) {
+      mask = ''
+    } else if (digits.length <= 2) {
+      mask = `(${digits}`
+    } else if (digits.length <= 6) {
+      mask = `(${digits.slice(0,2)})${digits.slice(2)}`
+    } else if (digits.length <= 10) {
+      mask = `(${digits.slice(0,2)})${digits.slice(2,6)}-${digits.slice(6)}`
+    } else {
+      mask = `(${digits.slice(0,2)})${digits.slice(2,7)}-${digits.slice(7)}`
+    }
+    e.target.value = mask
+  })
 
   // ── Total de pessoas + controle de kits ─────────────────
   function atualizarTotaisEKits() {
