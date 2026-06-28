@@ -6,6 +6,7 @@ export function renderLogin() {
     <div class="login-wrap">
       <div class="login-card">
         <div class="login-logo">
+          <img src="/cosis/logo-davila.svg" alt="dAvila Soluções Sustentáveis" class="login-logo-img">
           <div class="login-logo-text">CO<span>SIS</span></div>
           <div class="login-logo-sub">Controle de Visitas · Lote 05</div>
         </div>
