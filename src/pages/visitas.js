@@ -145,9 +145,9 @@ export async function renderVisitas() {
     )].sort((a, b) => a[1]?.localeCompare(b[1]))
     insts.forEach(([id, nome]) => {
       const o = document.createElement('option')
-      o.value = String(id)
+      o.value = nome
       o.textContent = nome
-      if (String(id) === atual) o.selected = true
+      if (nome === atual) o.selected = true
       fInst.appendChild(o)
     })
   }
@@ -167,7 +167,7 @@ export async function renderVisitas() {
       }
       if (uf   && v.instituicoes?.municipios?.estados?.sigla !== uf)  return false
       if (mun  && v.instituicoes?.municipios?.nome !== mun)            return false
-      if (inst && String(v.instituicoes?.id) !== inst)                  return false
+      if (inst && v.instituicoes?.nome !== inst)                         return false
       if (resp && v.criado_por !== resp)                               return false
       return true
     })
