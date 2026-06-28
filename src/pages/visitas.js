@@ -27,6 +27,7 @@ export async function renderVisitas() {
       <select id="vv-uf"><option value="">UF (todas)</option></select>
       <select id="vv-municipio"><option value="">Município (todos)</option></select>
       <select id="vv-instituicao"><option value="">Instituição (todas)</option></select>
+      ${!soCampo ? '<select id="vv-responsavel"><option value="">Responsável (todos)</option></select>' : ''}
       <button class="btn btn-ghost btn-sm" id="vv-limpar">Limpar</button>
     </div>
 
@@ -103,6 +104,21 @@ export async function renderVisitas() {
     ufs.forEach(uf => { const o = document.createElement('option'); o.value = uf; o.textContent = uf; fUf.appendChild(o) })
 
     popularInstituicoes()
+
+    // Responsável (apenas gestor/admin)
+    if (!soCampo) {
+      const fResp = document.getElementById('vv-responsavel')
+      fResp.innerHTML = '<option value="">Responsável (todos)</option>'
+      const uuidsOrdenados = [...new Set(allRows.map(v => v.criado_por).filter(Boolean))]
+        .sort((a, b) => (nomeMap[a] ?? '').localeCompare(nomeMap[b] ?? ''))
+      uuidsOrdenados.forEach(id => {
+        const o = document.createElement('option')
+        o.value = id
+        o.textContent = nomeMap[id] ?? id
+        fResp.appendChild(o)
+      })
+    }
+
     applyFilters()
   }
 
@@ -141,6 +157,7 @@ export async function renderVisitas() {
     const uf   = document.getElementById('vv-uf').value
     const mun  = document.getElementById('vv-municipio').value
     const inst = document.getElementById('vv-instituicao').value
+    const resp = !soCampo ? document.getElementById('vv-responsavel').value : ''
 
     const rows = allRows.filter(v => {
       if (st === 'pendente+rejeitada') {
@@ -151,6 +168,7 @@ export async function renderVisitas() {
       if (uf   && v.instituicoes?.municipios?.estados?.sigla !== uf)  return false
       if (mun  && v.instituicoes?.municipios?.nome !== mun)            return false
       if (inst && v.instituicoes?.id !== inst)                         return false
+      if (resp && v.criado_por !== resp)                               return false
       return true
     })
     renderTable(rows)
@@ -268,7 +286,9 @@ export async function renderVisitas() {
     applyFilters()
   })
 
-  ;['vv-status', 'vv-instituicao'].forEach(id =>
+  const filtrosSimples = ['vv-status', 'vv-instituicao']
+  if (!soCampo) filtrosSimples.push('vv-responsavel')
+  filtrosSimples.forEach(id =>
     document.getElementById(id).addEventListener('change', applyFilters))
 
   document.getElementById('vv-limpar').addEventListener('click', () => {
@@ -276,6 +296,7 @@ export async function renderVisitas() {
     document.getElementById('vv-uf').value = ''
     document.getElementById('vv-municipio').value = ''
     document.getElementById('vv-instituicao').value = ''
+    if (!soCampo) document.getElementById('vv-responsavel').value = ''
     popularMunicipios('')
     popularInstituicoes()
     applyFilters()
