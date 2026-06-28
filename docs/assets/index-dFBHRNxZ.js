@@ -180,7 +180,7 @@ ${v}`}class $ extends Error{constructor({message:e,code:s,cause:r,name:n}){var i
             <input type="number" id="mv-lon" step="any" placeholder="-43.085666">
           </div>
         </div>
-        <div class="form-grid form-grid-4" id="utm-fields" style="opacity:.4;pointer-events:none">
+        <div class="form-grid" id="utm-fields" style="opacity:.4;pointer-events:none;grid-template-columns:1fr 1fr auto">
           <div class="form-group">
             <label>UTM Norte</label>
             <input type="text" id="mv-utm-norte" readonly style="background:var(--cinza-pale)">
@@ -191,7 +191,7 @@ ${v}`}class $ extends Error{constructor({message:e,code:s,cause:r,name:n}){var i
           </div>
           <div class="form-group">
             <label>Zona UTM</label>
-            <input type="text" id="mv-utm-zona" readonly style="background:var(--cinza-pale)">
+            <input type="text" id="mv-utm-zona" readonly style="background:var(--cinza-pale);width:64px;text-align:center">
           </div>
         </div>
 
