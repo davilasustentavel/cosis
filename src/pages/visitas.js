@@ -14,7 +14,12 @@ export async function renderVisitas() {
 
     <div class="filter-bar">
       <select id="vv-status">
+        ${soCampo ? `
+        <option value="pendente+rejeitada" selected>Pendentes e Rejeitadas</option>
         <option value="">Todas</option>
+        ` : `
+        <option value="">Todas</option>
+        `}
         <option value="pendente">Pendentes</option>
         <option value="aprovada">Aprovadas</option>
         <option value="rejeitada">Rejeitadas</option>
@@ -107,7 +112,11 @@ export async function renderVisitas() {
     const mun = document.getElementById('vv-municipio').value
 
     const rows = allRows.filter(v => {
-      if (st  && v.status_validacao !== st) return false
+      if (st === 'pendente+rejeitada') {
+        if (v.status_validacao === 'aprovada') return false
+      } else if (st) {
+        if (v.status_validacao !== st) return false
+      }
       if (uf  && v.instituicoes?.municipios?.estados?.sigla !== uf) return false
       if (mun && v.instituicoes?.municipios?.nome !== mun) return false
       return true
@@ -215,7 +224,7 @@ export async function renderVisitas() {
     document.getElementById(id).addEventListener('change', applyFilters))
 
   document.getElementById('vv-limpar').addEventListener('click', () => {
-    document.getElementById('vv-status').value = ''
+    document.getElementById('vv-status').value = soCampo ? 'pendente+rejeitada' : ''
     document.getElementById('vv-uf').value = ''
     popularMunicipios('')
     applyFilters()
